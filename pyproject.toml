@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "music-score-sk"
+version = "0.1.0"
+description = "A swiss knife utility for handling music score files in the command line."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+  { name = "David Issa Mattos" }
+]
+dependencies = [
+  "fire>=0.6",
+  "music21>=9.0",
+]
+
+[project.scripts]
+music-score-sk = "music_score_sk.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+music_score_sk = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
