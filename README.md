@@ -43,6 +43,26 @@ music-score-sk convert --source score.abc --format musicxml > tmp.musicxml
 music-score-sk convert --source score.musicxml --format musicxml.pdf --output score.pdf
 ```
 
+PDF export requires LilyPond (or MuseScore). To install LilyPond on Mac or Linux:
+```bash
+   sudo apt-get install lilypond   # Debian/Ubuntu
+   brew install lilypond           # macOS (Homebrew)
+```
+To install Lilypond for Windows:
+
+Download installer from https://lilypond.org and run it  
+
+Then configure music21 once:
+```
+   python - <<'PY'
+   from music21 import environment
+   us = environment.UserSettings()
+   us['lilypondPath'] = '/path/to/lilypond'  # e.g. C:/Program Files (x86)/LilyPond/usr/bin/lilypond.exe on Windows
+   PY
+```
+
+After configuration, PDF conversions (musicxml.pdf) will succeed.
+
 ### Transpose module
 
 ```bash
@@ -105,8 +125,49 @@ music-score-sk extract --source score.musicxml --measures 1,3,5-8 --output highl
 
 # Combine part number selection with output piping
 music-score-sk extract --source score.musicxml --part-number 1 --measures 2-4 --output-format musicxml > flute_excerpt.musicxml
+```
 
+### Analyze module
+
+
+
+```bash
 # Analyze entire piece or pipeline with extracts
 music-score-sk analyze --source score.musicxml --key --npvi
 music-score-sk extract --source score.musicxml --measures 1-4 --output - | music-score-sk analyze --key
+```
+
+Available analyze flags (combine as needed):
+- `--title`
+- `--key`
+- `--key-clarity`
+- `--interval-entropy`
+- `--pitch-class-entropy`
+- `--npvi`
+- `--contour-complexity`
+- `--highest-note`
+- `--rhythmic-variety`
+- `--avg-duration`
+- `--number-of-notes`
+- `--key-signature`
+- `--time-signature`
+- `--pitch-range`
+- `--articulation-density`
+- `--note-density`
+- `--avg-tempo`
+- `--dynamic-range`
+- `--difficulty`
+- `--difficulty-categories`
+
+### Show module
+
+```bash
+# Render a score in the browser using OpenSheetMusicDisplay
+music-score-sk show --source score.musicxml
+
+# Hide title/composer/author or part names if desired
+music-score-sk show --source score.musicxml --hide-title --hide-composer --hide-part-names
+
+# Works in pipelines too (read from stdin if --source omitted)
+cat score.musicxml | music-score-sk show --hide-author
 ```

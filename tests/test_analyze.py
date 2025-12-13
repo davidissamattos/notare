@@ -28,3 +28,12 @@ def test_analyze_subset_via_extract(tmp_path) -> None:
     )
     result = analyze_score(source=str(subset), metrics=["key"])
     assert "Key:" in result
+
+
+def test_analyze_performance_and_difficulty() -> None:
+    result = analyze_score(
+        source=str(DATA_DIR / "c_scale.musicxml"),
+        metrics=["pitch_range", "difficulty_categories"],
+    )
+    assert "Pitch Range:" in result
+    assert "Difficulty Categories:" in result
