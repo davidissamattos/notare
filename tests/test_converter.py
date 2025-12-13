@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import io
 import shutil
 
 import pytest
@@ -56,3 +57,19 @@ def test_convert_preserves_c_scale(filename: str, tmp_path) -> None:
 
     assert output_path.exists()
     _assert_c_scale(output_path)
+
+
+def test_convert_supports_stdin_and_stdout() -> None:
+    source_bytes = (DATA_DIR / "c_scale.abc").read_bytes()
+    buffer = io.BytesIO()
+
+    convert_score(
+        target_format="musicxml",
+        stdin_data=source_bytes,
+        stdout_buffer=buffer,
+    )
+
+    score = m21_converter.parseData(buffer.getvalue())
+    notes = list(score.recurse().notes)
+    assert notes[0].pitch.step == "C"
+    assert notes[-1].pitch.step == "C"

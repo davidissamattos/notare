@@ -1,8 +1,13 @@
 """Helpers that wrap music21 conversion utilities."""
 
 from __future__ import annotations
+
 from pathlib import Path
+from typing import BinaryIO
+
 from music21 import converter as m21_converter
+
+from .utils import infer_format_from_path, load_score, write_score
 
 
 def _available_output_formats() -> tuple[str, ...]:
@@ -27,7 +32,14 @@ def list_output_formats() -> list[str]:
     return list(_available_output_formats())
 
 
-def convert_score(*, source: str, target_format: str, output: str) -> str:
+def convert_score(
+    *,
+    source: str | None = None,
+    target_format: str,
+    output: str | None = None,
+    stdin_data: bytes | None = None,
+    stdout_buffer: BinaryIO | None = None,
+) -> str:
     """Convert source file to target_format and write it to output."""
     available_formats = _available_output_formats()
     normalized_format = target_format.strip().lower()
@@ -37,14 +49,10 @@ def convert_score(*, source: str, target_format: str, output: str) -> str:
             f"{', '.join(available_formats)}"
         )
 
-    source_path = Path(source).expanduser()
-    if not source_path.exists():
-        raise FileNotFoundError(f"Source file not found: {source_path}")
-    output_path = Path(output).expanduser()
-    if output_path.parent and not output_path.parent.exists():
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    base_format, *subformats = normalized_format.split(".")
-    score = m21_converter.parse(str(source_path))
-    written_path = score.write(base_format, fp=str(output_path), subformats=subformats)
-    return f"Created {written_path} using format '{normalized_format}'."
+    score = load_score(source, stdin_data=stdin_data)
+    return write_score(
+        score,
+        normalized_format,
+        output=output,
+        stdout_buffer=stdout_buffer,
+    )

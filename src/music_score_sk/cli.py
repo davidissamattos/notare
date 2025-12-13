@@ -9,6 +9,10 @@ import fire
 
 from . import __version__
 from .converter import convert_score, list_output_formats
+from .metadata import metadata_summary
+from .extract import extract_sections
+from .transpose import transpose_score
+from .analyze import analyze_score
 
 
 class ScoreTool:
@@ -22,9 +26,135 @@ class ScoreTool:
         """List supported output formats."""
         return list_output_formats()
 
-    def convert(self, *, source: str, format: str, output: str) -> str:
+    def convert(
+        self,
+        *,
+        source: str | None = None,
+        format: str,
+        output: str | None = None,
+    ) -> str:
         """Convert a score to the requested format."""
         return convert_score(source=source, target_format=format, output=output)
+
+    def transpose(
+        self,
+        interval: float,
+        *,
+        source: str | None = None,
+        output: str | None = None,
+        part_name: str | None = None,
+        part_number: int | None = None,
+        key_sharps: int | None = None,
+        output_format: str | None = None,
+    ) -> str:
+        """Transpose the input score by the provided number of tones."""
+        return transpose_score(
+            source=source,
+            output=output,
+            steps=interval,
+            part_name=part_name,
+            part_number=part_number,
+            key_sharps=key_sharps,
+            output_format=output_format,
+        )
+
+    def metadata(
+        self,
+        *,
+        source: str | None = None,
+        output: str | None = None,
+        output_format: str | None = None,
+        title: bool = False,
+        author: bool = False,
+        format: bool = False,
+        composer: bool = False,
+        arranger: bool = False,
+        number_parts: bool = False,
+        number_measures: bool = False,
+        key_signature: bool = False,
+        tempo: bool = False,
+        new_title: str | None = None,
+        new_author: str | None = None,
+        new_format: str | None = None,
+        new_composer: str | None = None,
+        new_arranger: str | None = None,
+        new_number_parts: str | None = None,
+        new_number_measures: str | None = None,
+        new_key_signature: str | None = None,
+        new_tempo: str | None = None,
+    ) -> str:
+        """Inspect and optionally update score metadata."""
+        fields = [
+            field
+            for field, enabled in [
+                ("title", title),
+                ("author", author),
+                ("format", format),
+                ("composer", composer),
+                ("arranger", arranger),
+                ("number_parts", number_parts),
+                ("number_measures", number_measures),
+                ("key_signature", key_signature),
+                ("tempo", tempo),
+            ]
+            if enabled
+        ]
+        updates = {
+            "title": new_title,
+            "author": new_author,
+            "format": new_format,
+            "composer": new_composer,
+            "arranger": new_arranger,
+            "number_parts": new_number_parts,
+            "number_measures": new_number_measures,
+            "key_signature": new_key_signature,
+            "tempo": new_tempo,
+        }
+        return metadata_summary(
+            source=source,
+            output=output,
+            output_format=output_format,
+            fields=fields or None,
+            updates=updates,
+        )
+
+    def extract(
+        self,
+        *,
+        source: str | None = None,
+        output: str | None = None,
+        output_format: str | None = None,
+        measures: str | None = None,
+        part_name: str | None = None,
+        part_number: str | None = None,
+    ) -> str:
+        """Extract specific measures and/or parts from a score."""
+        return extract_sections(
+            source=source,
+            output=output,
+            output_format=output_format,
+            measures=measures,
+            part_names=part_name,
+            part_numbers=part_number,
+        )
+
+    def analyze(
+        self,
+        *,
+        source: str | None = None,
+        key: bool = False,
+        npvi: bool = False,
+    ) -> str:
+        """Analyze a score and report requested metrics."""
+        metrics = [
+            name
+            for name, enabled in [
+                ("key", key),
+                ("npvi", npvi),
+            ]
+            if enabled
+        ]
+        return analyze_score(source=source, metrics=metrics or None)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
