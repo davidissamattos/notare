@@ -9,7 +9,7 @@ import shutil
 import pytest
 from music21 import converter as m21_converter
 
-from music_score_sk.converter import convert_score, list_output_formats
+from notare.converter import convert_score, list_output_formats
 
 DATA_DIR = Path(__file__).parent / "data"
 HAS_LILYPOND = shutil.which("lilypond") is not None
@@ -37,13 +37,7 @@ def test_list_output_formats_includes_musicxml_and_midi() -> None:
     [
         "c_scale.musicxml",
         "c_scale_basic.musicxml",
-        "c_scale.abc",
-        pytest.param(
-            "c_scale.ly",
-            marks=pytest.mark.skipif(
-                not HAS_LILYPOND, reason="Lilypond binary not available"
-            ),
-        ),
+        "c_scale.abc"
     ],
 )
 def test_convert_preserves_c_scale(filename: str, tmp_path) -> None:

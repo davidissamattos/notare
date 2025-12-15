@@ -6,7 +6,7 @@ from pathlib import Path
 
 from music21 import converter as m21_converter
 
-from music_score_sk.metadata import metadata_summary
+from notare.metadata import metadata_summary
 
 DATA_DIR = Path(__file__).parent / "data"
 

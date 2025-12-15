@@ -7,29 +7,10 @@ from typing import BinaryIO
 
 from music21 import converter as m21_converter
 
-from .utils import infer_format_from_path, load_score, write_score
+from .utils import infer_format_from_path, load_score, write_score, _available_output_formats,list_output_formats
 
 
-def _available_output_formats() -> tuple[str, ...]:
-    """Return sorted output formats supported by music21."""
-    formats: set[str] = set()
-    for sub_converter in m21_converter.Converter.subConvertersList("output"):
-        base_formats = (
-            fmt.lower()
-            for fmt in getattr(sub_converter, "registerFormats", ())
-            if fmt
-        )
-        subformats = getattr(sub_converter, "registerOutputSubformatExtensions", {}) or {}
-        for base in base_formats:
-            formats.add(base)
-            for sub in subformats:
-                formats.add(f"{base}.{sub.lower()}")
-    return tuple(sorted(formats))
 
-
-def list_output_formats() -> list[str]:
-    """Expose the format list."""
-    return list(_available_output_formats())
 
 
 def convert_score(

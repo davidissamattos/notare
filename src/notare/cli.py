@@ -8,11 +8,13 @@ import sys
 import fire
 
 from . import __version__
-from .converter import convert_score, list_output_formats
+from .converter import convert_score
 from .metadata import metadata_summary
 from .extract import extract_sections
 from .transpose import transpose_score
 from .analyze import analyze_score
+from .show import show_score
+from .utils import  list_output_formats, list_input_formats
 
 
 class ScoreTool:
@@ -24,7 +26,12 @@ class ScoreTool:
 
     def formats(self) -> list[str]:
         """List supported output formats."""
-        return list_output_formats()
+        print("Supported output formats:")
+        for fmt in list_output_formats():
+            print(f" - {fmt}")
+        print("Supported input formats:")
+        for fmt in list_input_formats():
+            print(f" - {fmt}")
 
     def convert(
         self,
@@ -191,6 +198,24 @@ class ScoreTool:
             if enabled
         ]
         return analyze_score(source=source, metrics=metrics or None)
+
+    def show(
+        self,
+        *,
+        source: str | None = None,
+        hide_title: bool = False,
+        hide_author: bool = False,
+        hide_composer: bool = False,
+        hide_part_names: bool = False,
+    ) -> str:
+        """Render the score in a browser using OSMD."""
+        return show_score(
+            source=source,
+            hide_title=hide_title,
+            hide_author=hide_author,
+            hide_composer=hide_composer,
+            hide_part_names=hide_part_names,
+        )
 
 
 def main(argv: Sequence[str] | None = None) -> None:

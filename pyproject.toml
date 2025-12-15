@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Notare"
-version = "0.1.0"
-description = "A swiss knife utility for handling music score files in the command line."
+version = "0.1.1"
+description = "A swiss knife music utility for handling music score files in the command line."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }

@@ -6,10 +6,24 @@ The CLI uses [Google's Python Fire](https://github.com/google/python-fire) for t
 
 ## Installation
 
-Installation from github
+### Installation from source code
+
 ```bash
 pip install -e .
 ```
+
+### From pip
+
+```bash
+pip install notare
+```
+
+### Building the binaries
+
+```bash
+python -m build .
+```
+
 
 ## Tests
 ```bash
@@ -60,6 +74,15 @@ Then configure music21 once:
 ```
 
 After configuration, PDF conversions (musicxml.pdf) will succeed.
+
+**RECOMMENDATION**
+
+The recommended way is to use musicxml as input and output as it is the most supported
+
+**LIMITATIONS**
+
+* music21 does not have a ABC writer. So it does not export to ABC, but it can parse it
+* music21 does not have a Lilypond parser, but it supports it as an output format
 
 ### Transpose module
 

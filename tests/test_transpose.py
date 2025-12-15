@@ -11,7 +11,7 @@ from music21 import key as m21_key
 from music21 import note
 from music21 import stream
 
-from music_score_sk.transpose import transpose_score
+from notare.transpose import transpose_score
 
 DATA_DIR = Path(__file__).parent / "data"
 

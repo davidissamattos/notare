@@ -8,7 +8,7 @@ from music21 import converter as m21_converter
 from music21 import note
 from music21 import stream
 
-from music_score_sk.extract import extract_sections
+from notare.extract import extract_sections
 
 
 def _build_score(tmp_path: Path) -> Path:

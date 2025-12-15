@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from music_score_sk.analyze import analyze_score
-from music_score_sk.extract import extract_sections
+from notare.analyze import analyze_score
+from notare.extract import extract_sections
 
 DATA_DIR = Path(__file__).parent / "data"
 
