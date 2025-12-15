@@ -64,7 +64,7 @@ def show_score(
 
     if hide_part_names:
         for part in score.parts:
-            part.partName = ""
+            part.partName = " "
 
     with tempfile.NamedTemporaryFile(suffix=".musicxml", delete=False) as xml_file:
       xml_path = Path(xml_file.name)

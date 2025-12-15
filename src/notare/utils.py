@@ -106,19 +106,70 @@ def load_score(source: str | None, *, stdin_data: bytes | None = None) -> m21_st
         # In case score has no parts iterable, ignore
         pass
 
+    # Renumber measures to always start at 1, regardless of pickup/anacrusis
+    _renumber_measures_starting_at_one(score)
+
     return score
+
+def _renumber_measures_starting_at_one(score: m21_stream.Score) -> None:
+    """Ensure all measures in parts (or score if no parts) start at number 1.
+
+    Some imports label pickup/anacrusis as measure 0 or None; normalize so
+    subsequent operations can assume 1-based measure numbering consistently.
+    """
+    try:
+        parts = list(score.parts)
+    except Exception:
+        parts = []
+
+    targets: list[m21_stream.Stream]
+    targets = parts if parts else [score]
+
+    from music21 import stream as m21_stream_mod
+    for target in targets:
+        count = 0
+        for meas in target.getElementsByClass(m21_stream_mod.Measure):
+            count += 1
+            try:
+                meas.number = count
+            except Exception:
+                # If measure object doesn't allow setting, skip gracefully
+                pass
+
+def _determine_format(
+    *,
+    output: str | None,
+    explicit: str | None,
+    fallback: str | None,
+) -> str:
+    """Pick the format for writing results."""
+    if explicit:
+        return explicit.strip().lower()
+    if output:
+        suffix = Path(output).suffix.lstrip(".")
+        if suffix:
+            return suffix.lower()
+    if fallback:
+        return fallback
+    return "musicxml"
 
 
 def write_score(
     score: m21_stream.Score,
-    target_format: str,
-    *,
-    output: str | None,
+    target_format: str = 'musicxml',
+    output: str | None = None,
     stdout_buffer: BinaryIO | None = None,
     write_kwargs: dict[str, Any] | None = None,
 ) -> str:
     """Write the score either to stdout or to a file path."""
-    if output is None:
+    target_format = _determine_format(
+        output=output,
+        explicit=target_format,
+        fallback="musicxml",
+    )
+    write_kwargs = {"makeNotation": False} if target_format in {"musicxml", "midi"} else None
+
+    if output is None: 
         buffer = stdout_buffer or sys.stdout.buffer
         # If target_format is omitted or unsupported, fall back to musicxml for piping
         available = set(_available_output_formats())
@@ -129,6 +180,8 @@ def write_score(
             effective_fmt = fmt if fmt in available else "musicxml"
         _write_to_buffer(score, effective_fmt, buffer, write_kwargs=write_kwargs)
         return ""
+
+    
 
     output_path = Path(output).expanduser()
     if output_path.parent and not output_path.parent.exists():

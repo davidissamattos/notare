@@ -24,6 +24,7 @@ def extract_sections(
 ) -> str:
     """Extract selected measures/parts from a score and persist the result."""
     score = load_score(source, stdin_data=stdin_data)
+    measures = str(measures).strip() if measures else None
     ranges = _parse_measure_spec(measures)
     selected_parts = _select_parts(score, part_names=part_names, part_numbers=part_numbers)
 
@@ -52,13 +53,14 @@ def extract_sections(
     for part in parts_to_add:
         new_score.insert(len(new_score.parts), part)
 
-    final_format = output_format or infer_format_from_path(output, default=infer_format_from_path(source))
-    return write_score(
+    message = write_score(
         new_score,
-        final_format,
+        target_format=output_format,
         output=output,
         stdout_buffer=stdout_buffer,
     )
+    return message
+
 
 
 def _parse_measure_spec(spec: str | None) -> list[tuple[int, int]]:

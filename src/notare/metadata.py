@@ -53,15 +53,13 @@ def metadata_summary(
         return summary
 
     _apply_metadata_updates(score, update_payload)
-    base_default = infer_format_from_path(source, default="musicxml")
-    target_format = output_format or infer_format_from_path(output, default=base_default)
-    write_message = write_score(
+    message = write_score(
         score,
-        target_format,
+        target_format=output_format,
         output=output,
         stdout_buffer=stdout_buffer,
     )
-    return f"{summary}\n{write_message}"
+    return message
 
 
 def _extract_metadata(score: m21_stream.Score, source_path: str | None) -> dict[str, str]:

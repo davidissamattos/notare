@@ -41,24 +41,12 @@ def transpose_score(
         part.transpose(interval_obj, inPlace=True)
         _apply_key_signature(part, key_sharps=key_sharps)
 
-    target_format = _determine_format(
-        output=output,
-        explicit=output_format,
-        fallback=infer_format_from_path(source, default="musicxml"),
-    )
-    # Some writers (e.g., ABC) may not support makeNotation; use only for MusicXML/MIDI
-    write_kwargs = {"makeNotation": False} if target_format in {"musicxml", "midi"} else None
     message = write_score(
         score,
-        target_format,
+        target_format=output_format,
         output=output,
         stdout_buffer=stdout_buffer,
-        write_kwargs=write_kwargs,
     )
-    if output:
-        source_name = Path(source).name if source else "stdin"
-        return f"Created {Path(output)} by transposing {source_name} by {steps} tone(s)."
-    # When emitting to stdout, avoid printing a trailing message that would corrupt pipes
     return message
 
 
@@ -134,19 +122,3 @@ def _apply_key_signature(
     container.insert(0, new_signature)
 
 
-def _determine_format(
-    *,
-    output: str | None,
-    explicit: str | None,
-    fallback: str | None,
-) -> str:
-    """Pick the format for writing results."""
-    if explicit:
-        return explicit.strip().lower()
-    if output:
-        suffix = Path(output).suffix.lstrip(".")
-        if suffix:
-            return suffix.lower()
-    if fallback:
-        return fallback
-    return "musicxml"

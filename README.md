@@ -148,6 +148,12 @@ notare extract --source score.musicxml --measures 1,3,5-8 --output highlights.mu
 notare extract --source score.musicxml --part-number 1 --measures 2-4 --output-format musicxml > flute_excerpt.musicxml
 ```
 
+**NOTES**
+
+* During import we re-number all the measures to start from 1. So the first measure is 1
+* If your score has other measures number system it will be overwritten 
+* If 0 is passed in measures, it returns the whole score
+
 ### Analyze module
 
 

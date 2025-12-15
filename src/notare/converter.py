@@ -31,9 +31,10 @@ def convert_score(
         )
 
     score = load_score(source, stdin_data=stdin_data)
-    return write_score(
+    message = write_score(
         score,
-        normalized_format,
+        target_format=normalized_format,
         output=output,
         stdout_buffer=stdout_buffer,
     )
+    return message
