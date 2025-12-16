@@ -10,6 +10,7 @@ import fire
 from . import __version__
 from .converter import convert_score
 from .metadata import metadata_summary
+from .metadata import set_metadata as set_metadata_cmd
 from .extract import extract_sections
 from .transpose import transpose_score
 from .analyze import analyze_score
@@ -72,14 +73,19 @@ class ScoreTool:
         output: str | None = None,
         output_format: str | None = None,
         title: bool = False,
+        subtitle: bool = False,
         author: bool = False,
         format: bool = False,
+        rights: bool = False,
+        software: bool = False,
         composer: bool = False,
         arranger: bool = False,
         number_parts: bool = False,
         number_measures: bool = False,
         key_signature: bool = False,
+        musical_key: bool = False,
         tempo: bool = False,
+        clef: bool = False,
         new_title: str | None = None,
         new_author: str | None = None,
         new_format: str | None = None,
@@ -95,14 +101,19 @@ class ScoreTool:
             field
             for field, enabled in [
                 ("title", title),
+                ("subtitle", subtitle),
                 ("author", author),
                 ("format", format),
+                ("rights", rights),
+                ("software", software),
                 ("composer", composer),
                 ("arranger", arranger),
                 ("number_parts", number_parts),
                 ("number_measures", number_measures),
                 ("key_signature", key_signature),
+                ("musical_key", musical_key),
                 ("tempo", tempo),
+                ("clef", clef),
             ]
             if enabled
         ]
@@ -199,6 +210,37 @@ class ScoreTool:
         ]
         return analyze_score(source=source, metrics=metrics or None)
 
+    def set_metadata(
+        self,
+        *,
+        source: str | None = None,
+        output: str | None = None,
+        title: str | None = None,
+        subtitle: str | None = None,
+        author: str | None = None,
+        format: str | None = None,
+        rights: str | None = None,
+        composer: str | None = None,
+        arranger: str | None = None,
+    ) -> str:
+        """Set a single general metadata attribute and write the score.
+
+        Use exactly one of: --title, --subtitle, --author, --format, --rights, --composer, --arranger.
+
+        Writes to --output if provided, otherwise streams to stdout (supports piping).
+        """
+        return set_metadata_cmd(
+            source=source,
+            output=output,
+            title=title,
+            subtitle=subtitle,
+            author=author,
+            format=format,
+            rights=rights,
+            composer=composer,
+            arranger=arranger,
+        )
+
     def show(
         self,
         *,
@@ -207,6 +249,7 @@ class ScoreTool:
         hide_author: bool = False,
         hide_composer: bool = False,
         hide_part_names: bool = False,
+        print: bool = False,
     ) -> str:
         """Render the score in a browser using OSMD."""
         return show_score(
@@ -215,6 +258,7 @@ class ScoreTool:
             hide_author=hide_author,
             hide_composer=hide_composer,
             hide_part_names=hide_part_names,
+            auto_print=print,
         )
 
 

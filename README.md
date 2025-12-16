@@ -1,8 +1,8 @@
 # notare
 
-A swiss knife utility for handling music score files in the command line.
+A swiss knife utility for handling music score files in the command line. The aim of this cli utility is not to write music or to edit/modify music on a note level, but rather to perform bulk and scriptable transformations (e.g. extract metadata/analysis from several files). Extract the first 5 measures of 100 files and generate a pdf for then. Change the composer of multiple files
 
-The CLI uses [Google's Python Fire](https://github.com/google/python-fire) for the CLI handling, Pytest for tests and behind the scenes most of the calculations and transformations are done with the excelent music21 library
+The CLI uses [Google's Python Fire](https://github.com/google/python-fire) for the CLI handling, Pytest for tests and behind the scenes most of the calculations and transformations are done with the excelent music21 library.
 
 ## Installation
 
@@ -112,24 +112,39 @@ notare transpose 0 --source score.musicxml --output flute_down.musicxml --key-sh
 
 ### Metadata module
 
-Available metadata flags (--field or --new-field)
+Available metadata flags (query fields with `--field`, update with `--new-field`)
 
-* title 
-* author 
-* format
-* composer
-* arranger
-* number-parts
-* number-measures
-* key-signature
-* tempo
+- title
+- subtitle
+- author
+- format
+- rights
+- software
+- composer
+- arranger
+- number-parts
+- number-measures
+- key-signature
+- musical-key
+- tempo
 
-If you add --new-field this means it is expected a new value
+Behavior
+- No field flags: prints a detailed, multi-section summary, including per-part clefs, key signatures (accidentals), musical key, and tempos.
+- One field flag: prints only the raw value (no label). Useful in scripts.
+- Multiple field flags: prints selected fields as `Label: value` lines.
 
+Examples
 ```bash
-# Inspect metadata (all fields by default, or pick specific fields)
+# Full summary
 notare metadata --source score.musicxml
-notare metadata --source score.musicxml --title --composer
+
+# Single field (bare value)
+notare metadata --source score.musicxml --title
+notare metadata --source score.musicxml --software
+notare metadata --source score.musicxml --key-signature
+
+# Multiple selected (labeled)
+notare metadata --source score.musicxml --title --composer --musical-key
 
 # Update metadata and write to a new file (supports piping like other commands)
 notare metadata --source score.musicxml --new-title "My new title" --output updated.musicxml
@@ -195,6 +210,19 @@ notare show --source score.musicxml
 # Hide title/composer/author or part names if desired
 notare show --source score.musicxml --hide-title --hide-composer --hide-part-names
 
-# Works in pipelines too (read from stdin if --source omitted)
+# Works in pipelines too (read from stdin if --source omitted). Mac/Linux
 cat score.musicxml | notare show --hide-author
+
+# Windows  (note the use of type and the slashes):
+type tests\data\BrahWiMeSample.musicxml | notare show
+
 ```
+
+If you don't have Lilypond and still want to print/save pdf you can use the browser printing to do it. You just have to set the --print flag and the print dialog is automatically triggered. Note that this is practical but not feasible for batch jobs
+
+```bash
+notare show --source score.musicxml --print
+
+type tests\data\BrahWiMeSample.musicxml | notare show --print
+```
+

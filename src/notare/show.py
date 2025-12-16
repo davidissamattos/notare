@@ -39,7 +39,7 @@ OSMD_TEMPLATE = """<!DOCTYPE html>
         drawLyricist: {draw_author},
         drawMeasureNumbers: true
       }});
-      osmd.load(data).then(function() {{ osmd.render(); }});
+      osmd.load(data).then(function() {{ osmd.render(); {print_call} }});
     }});
   </script>
 </head>
@@ -58,6 +58,7 @@ def show_score(
     hide_composer: bool = False,
     hide_part_names: bool = False,
     stdin_data: bytes | None = None,
+  auto_print: bool = False,
 ) -> str:
     """Render a score using OSMD and open it in the browser."""
     score = load_score(source, stdin_data=stdin_data)
@@ -76,6 +77,7 @@ def show_score(
       pass
 
     page_title = (score.metadata.title if score.metadata else "") or "Score Preview"
+    print_call = "setTimeout(function(){window.print();}, 300);" if auto_print else ""
     html_content = OSMD_TEMPLATE.format(
         title=page_title,
         osmd_version=OSMD_VERSION,
@@ -83,6 +85,7 @@ def show_score(
         draw_title=str(not hide_title).lower(),
         draw_composer=str(not hide_composer).lower(),
         draw_author=str(not hide_author).lower(),
+      print_call=print_call,
     )
 
     html_path = Path(tempfile.mkstemp(suffix=".html")[1])

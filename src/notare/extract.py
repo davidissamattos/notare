@@ -25,6 +25,8 @@ def extract_sections(
     """Extract selected measures/parts from a score and persist the result."""
     score = load_score(source, stdin_data=stdin_data)
     measures = str(measures).strip() if measures else None
+    part_names = str(part_names).strip() if part_names else None
+    part_numbers = str(part_numbers).strip() if part_numbers else None
     ranges = _parse_measure_spec(measures)
     selected_parts = _select_parts(score, part_names=part_names, part_numbers=part_numbers)
 
@@ -66,17 +68,19 @@ def extract_sections(
 def _parse_measure_spec(spec: str | None) -> list[tuple[int, int]]:
     if not spec:
         return []
+    # Normalize and remove accidental wrappers like parentheses/brackets from shells
+    spec = spec.strip().strip("()[]")
     ranges: list[tuple[int, int]] = []
     for token in spec.split(","):
-        token = token.strip()
+        token = token.strip().strip("()[]")
         if not token:
             continue
         if "-" in token:
             start_str, end_str = token.split("-", 1)
-            start = int(start_str)
-            end = int(end_str)
+            start = int(start_str.strip())
+            end = int(end_str.strip())
         else:
-            start = end = int(token)
+            start = end = int(token.strip())
         if start > end:
             start, end = end, start
         ranges.append((start, end))
