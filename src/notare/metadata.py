@@ -214,7 +214,7 @@ def _build_detailed_summary(score: m21_stream.Score, source_path: str | None, st
     lines.append(f"Number of Parts: {num_parts}")
 
     musical_key = _analyze_musical_key(score)
-    lines.append(f"Main musical Key: {musical_key}")
+    lines.append(f"Main Musical Key: {musical_key}")
 
     # Score-wide time signatures and tempos
     time_sigs = ", ".join(_collect_time_signatures(score)) or "Unknown"

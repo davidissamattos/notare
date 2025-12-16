@@ -226,3 +226,22 @@ notare show --source score.musicxml --print
 type tests\data\BrahWiMeSample.musicxml | notare show --print
 ```
 
+### Play module
+
+Play a score by rendering it to MIDI and opening your system's default MIDI player. It does not write to stdout.
+
+```bash
+# From a file
+notare play --source score.musicxml
+
+# Via pipe (macOS/Linux)
+cat score.musicxml | notare play
+
+# Windows (note the use of type and backslashes)
+type tests\data\BrahWiMeSample.musicxml | notare play
+```
+
+Notes:
+- Uses music21 to render a temporary `.mid` and opens it with the OS default app.
+- Ensure a MIDI-capable player is installed/associated on your system.
+
