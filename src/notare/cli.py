@@ -85,6 +85,7 @@ class ScoreTool:
         key_signature: bool = False,
         musical_key: bool = False,
         tempo: bool = False,
+        time_signature: bool = False,
         clef: bool = False,
         new_title: str | None = None,
         new_author: str | None = None,
@@ -113,6 +114,7 @@ class ScoreTool:
                 ("key_signature", key_signature),
                 ("musical_key", musical_key),
                 ("tempo", tempo),
+                ("time_signature", time_signature),
                 ("clef", clef),
             ]
             if enabled

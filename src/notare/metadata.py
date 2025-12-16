@@ -19,6 +19,7 @@ from music21 import stream as m21_stream
 from music21 import key as m21_key
 from music21 import clef as m21_clef
 from music21 import tempo as m21_tempo
+from music21 import meter as m21_meter
 
 from .utils import infer_format_from_path, load_score, write_score
 
@@ -55,7 +56,7 @@ def metadata_summary(
     # If specific fields are requested, output only those (single-value friendly).
     if fields:
         # Split requested fields into general vs part-related and print both when mixed
-        part_related = {"key_signature", "musical_key", "tempo", "clef"}
+        part_related = {"key_signature", "musical_key", "clef"}
         general_fields = [f for f in fields if f not in part_related]
         part_fields = [f for f in fields if f in part_related]
 
@@ -78,6 +79,8 @@ def metadata_summary(
                 "arranger": "Arranger",
                 "number_parts": "Number of Parts",
                 "number_measures": "Number of Measures",
+                "time_signature": "Time Signatures",
+                "tempo": "Tempos",
             }
             for k in general_fields:
                 if k in selected:
@@ -213,6 +216,12 @@ def _build_detailed_summary(score: m21_stream.Score, source_path: str | None, st
     musical_key = _analyze_musical_key(score)
     lines.append(f"Main musical Key: {musical_key}")
 
+    # Score-wide time signatures and tempos
+    time_sigs = ", ".join(_collect_time_signatures(score)) or "Unknown"
+    tempos_all = ", ".join(sorted(_collect_tempos(score))) or "Unknown"
+    lines.append(f"Time Signatures: {time_sigs}")
+    lines.append(f"Tempos: {tempos_all}")
+
     rights = _collect_rights(meta, source_path=source_path, stdin_data=stdin_data)
     softwares = _collect_encoding_software(meta, source_path=source_path, stdin_data=stdin_data)
     lines.append(f"Rights: {rights if rights else 'Unknown'}")
@@ -226,12 +235,11 @@ def _build_detailed_summary(score: m21_stream.Score, source_path: str | None, st
 
         clefs = _collect_clefs(part)
         ksigs = _collect_key_signatures(part)
-        tempos = _collect_tempos(part)
 
         lines.append(f"- Clefs: {', '.join(clefs) if clefs else 'Unknown'}")
         lines.append(f"- Key Signatures: {', '.join(ksigs) if ksigs else 'Unknown'}")
         
-        lines.append(f"- Tempos: {', '.join(tempos) if tempos else 'Unknown'}")
+        # Per-part tempos removed; tempos reported at score level
 
     return "\n".join(lines)
 
@@ -274,22 +282,9 @@ def _extract_single_fields(
     # Musical key detected on the full score
     musical_key = _analyze_musical_key(score)
 
-    # Aggregate tempos across score
-    tempo_values = set()
-    try:
-        for mm in score.recurse().getElementsByClass(m21_tempo.MetronomeMark):
-            number = getattr(mm, "number", None)
-            text = getattr(mm, "text", None)
-            if number is not None:
-                try:
-                    tempo_values.add(f"{int(number)} BPM")
-                except Exception:
-                    tempo_values.add(f"{number} BPM")
-            elif text:
-                tempo_values.add(str(text))
-    except Exception:
-        pass
-    tempo = ", ".join(sorted(tempo_values))
+    # Aggregate time signatures and tempos across score (global)
+    time_signature = ", ".join(_collect_time_signatures(score))
+    tempo = ", ".join(sorted(_collect_tempos(score)))
 
     return {
         "title": title,
@@ -305,6 +300,7 @@ def _extract_single_fields(
         "key_signature": key_signature,
         "musical_key": musical_key,
         "tempo": tempo,
+        "time_signature": time_signature,
     }
 
 
@@ -313,13 +309,12 @@ def _print_part_fields(score: m21_stream.Score, *, requested_fields: list[str]) 
     lines: list[str] = []
     # For each requested part-related field, print values per part
     for field in requested_fields:
-        if field not in {"key_signature", "musical_key", "tempo", "clef"}:
+        if field not in {"key_signature", "musical_key", "clef"}:
             continue
         # Header for the field
         header = {
             "key_signature": "Key Signature",
             "musical_key": "Musical Key",
-            "tempo": "Tempo",
             "clef": "Clefs",
         }[field]
         lines.append(f"{header}:")
@@ -329,8 +324,6 @@ def _print_part_fields(score: m21_stream.Score, *, requested_fields: list[str]) 
                 vals = ", ".join(_collect_key_signatures(part)) or ""
             elif field == "musical_key":
                 vals = _analyze_musical_key(part)
-            elif field == "tempo":
-                vals = ", ".join(_collect_tempos(part)) or ""
             else:  # clef
                 vals = ", ".join(_collect_clefs(part)) or ""
             lines.append(f"- {part_label}: {vals}")
@@ -477,6 +470,23 @@ def _collect_tempos(part: m21_stream.Stream) -> list[str]:
     except Exception:
         pass
     return values
+
+
+def _collect_time_signatures(score_or_part: m21_stream.Stream) -> list[str]:
+    tokens: list[str] = []
+    try:
+        seen = set()
+        for ts in score_or_part.recurse().getElementsByClass(m21_meter.TimeSignature):
+            num = getattr(ts, "numerator", None)
+            den = getattr(ts, "denominator", None)
+            if num and den:
+                label = f"{num}/{den}"
+                if label not in seen:
+                    seen.add(label)
+                    tokens.append(label)
+    except Exception:
+        pass
+    return tokens
 
 
 def _collect_rights(meta: m21_metadata.Metadata, *, source_path: str | None, stdin_data: bytes | None) -> str:
