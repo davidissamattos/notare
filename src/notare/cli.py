@@ -502,7 +502,7 @@ class ScoreTool:
             algorithms=algorithms,
         )
 
-    def add(
+    def insert(
         self,
         *,
         original: str,
@@ -515,7 +515,7 @@ class ScoreTool:
         """Insert measures and parts from one score into another.
 
         Examples
-        - `notare add --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml`
+        - `notare insert --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml`
 
         Behavior
         - Parts matched by name receive the inserted measures from `to_add`.

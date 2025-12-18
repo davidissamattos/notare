@@ -320,10 +320,10 @@ Insert measures and parts from one score into another, matching by part names.
 
 ```bash
 # Insert all measures from b into a before measure 1
-notare add --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml
+notare insert --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml
 
 # Insert after a measure
-notare add --original a.musicxml --to-add b.musicxml --measure 4 --before false --output out.musicxml
+notare insert --original a.musicxml --to-add b.musicxml --measure 4 --before false --output out.musicxml
 ```
 
 Behavior
