@@ -1,5 +1,3 @@
-"""Tests for simplify module and ornament removal algorithm."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,8 +8,89 @@ from music21 import duration as m21_duration
 from music21 import meter as m21_meter
 from music21 import note as m21_note
 from music21 import stream as m21_stream
+from music21 import expressions as m21_expr
 
 from notare.simplify import simplify_score
+
+def test_ornament_removal_scoped_to_part_name(tmp_path: Path) -> None:
+    # Two parts: Flute and Oboe; apply simplify only to Flute via part-name
+    flute = m21_stream.Part()
+    flute.partName = "Flute"
+    m1 = m21_stream.Measure(number=1)
+    m1.insert(0, m21_meter.TimeSignature("4/4"))
+    n1 = m21_note.Note("C4"); n1.duration = m21_duration.Duration(0.5)
+    n2 = m21_note.Note("D4"); n2.duration = m21_duration.Duration(0.0625)
+    n3 = m21_note.Note("C4"); n3.duration = m21_duration.Duration(1.0)
+    for n in (n1, n2, n3): m1.append(n)
+    flute.append(m1)
+
+    oboe = m21_stream.Part(); oboe.partName = "Oboe"
+    m2 = m21_stream.Measure(number=1)
+    m2.insert(0, m21_meter.TimeSignature("4/4"))
+    o1 = m21_note.Note("C4"); o1.duration = m21_duration.Duration(0.5)
+    o2 = m21_note.Note("D4"); o2.duration = m21_duration.Duration(0.0625)
+    o3 = m21_note.Note("C4"); o3.duration = m21_duration.Duration(1.0)
+    for n in (o1, o2, o3): m2.append(n)
+    oboe.append(m2)
+
+    score = m21_stream.Score()
+    score.insert(0, flute)
+    score.insert(0, oboe)
+    in_path = tmp_path / "multi.musicxml"
+    out_path = tmp_path / "out.musicxml"
+    score.write("musicxml", fp=str(in_path))
+
+    # Simplify only Flute
+    simplify_score(
+        algorithms=[("ornament_removal", {"duration": "1/4"})],
+        source=str(in_path),
+        output=str(out_path),
+        part_names="Flute",
+    )
+
+    out = m21_converter.parse(str(out_path))
+    out_flute, out_oboe = out.parts
+    names_flute = [n.pitch.nameWithOctave for n in out_flute.recurse().notes]
+    names_oboe = [n.pitch.nameWithOctave for n in out_oboe.recurse().notes]
+    assert names_flute == ["C4", "C4"]
+    assert names_oboe == ["C4", "D4", "C4"]
+
+
+def test_ornament_removal_scoped_to_measures(tmp_path: Path) -> None:
+    # One part, two measures; apply to measure 1 only
+    part = m21_stream.Part(); part.partName = "Solo"
+    m1 = m21_stream.Measure(number=1)
+    m1.insert(0, m21_meter.TimeSignature("4/4"))
+    a1 = m21_note.Note("C4"); a1.duration = m21_duration.Duration(0.5)
+    a2 = m21_note.Note("D4"); a2.duration = m21_duration.Duration(0.0625)
+    a3 = m21_note.Note("C4"); a3.duration = m21_duration.Duration(1.0)
+    for n in (a1, a2, a3): m1.append(n)
+
+    m2 = m21_stream.Measure(number=2)
+    b1 = m21_note.Note("C4"); b1.duration = m21_duration.Duration(0.5)
+    b2 = m21_note.Note("D4"); b2.duration = m21_duration.Duration(0.0625)
+    b3 = m21_note.Note("C4"); b3.duration = m21_duration.Duration(1.0)
+    for n in (b1, b2, b3): m2.append(n)
+
+    part.append(m1); part.append(m2)
+    score = m21_stream.Score(); score.insert(0, part)
+    in_path = tmp_path / "measures.musicxml"
+    out_path = tmp_path / "out_measures.musicxml"
+    score.write("musicxml", fp=str(in_path))
+
+    simplify_score(
+        algorithms=[("ornament_removal", {"duration": "1/4"})],
+        source=str(in_path),
+        output=str(out_path),
+        measures="1",
+    )
+
+    out = m21_converter.parse(str(out_path))
+    out_part = out.parts[0] if out.parts else out
+    # Expected: measure 1 simplified -> [C, C]; measure 2 unchanged -> [C, D, C]
+    names = [n.pitch.nameWithOctave for n in out_part.recurse().notes]
+    assert names == ["C4", "C4", "C4", "D4", "C4"]
+"""Tests for simplify module and ornament removal algorithm."""
 
 
 def _make_score_with_notes(notes: list[m21_note.Note]) -> m21_stream.Score:
@@ -44,7 +123,8 @@ def test_ornament_removal_grace_neighbor_removed() -> None:
     n1.duration = m21_duration.Duration(0.5)
 
     n2 = m21_note.Note("D4")
-    n2.makeGrace()
+    # Simulate a grace-like very short neighbor by small duration
+    n2.duration = m21_duration.Duration(0.0625)
 
     n3 = m21_note.Note("C4")
     n3.duration = m21_duration.Duration(1.0)
@@ -130,3 +210,31 @@ def test_simplify_supports_piping() -> None:
     part = out.parts[0] if out.parts else out
     names = [n.pitch.nameWithOctave for n in part.recurse().notes]
     assert names == ["C4", "C4"]
+
+
+def test_ornament_markings_are_removed(tmp_path: Path) -> None:
+    # Create a note with an explicit trill marking
+    part = m21_stream.Part()
+    meas = m21_stream.Measure(number=1)
+    meas.insert(0, m21_meter.TimeSignature("4/4"))
+    n = m21_note.Note("C4")
+    n.duration = m21_duration.Duration(1.0)
+    n.expressions.append(m21_expr.Trill())
+    meas.append(n)
+    part.append(meas)
+    score = m21_stream.Score(); score.insert(0, part)
+
+    in_path = tmp_path / "orn_mark.musicxml"
+    out_path = tmp_path / "orn_mark_out.musicxml"
+    score.write("musicxml", fp=str(in_path))
+
+    simplify_score(
+        algorithms=[("ornament_removal", {"duration": "1/8"})],
+        source=str(in_path),
+        output=str(out_path),
+    )
+
+    out = m21_converter.parse(str(out_path))
+    # Ensure no Ornament expressions remain
+    orns = list(out.recurse().getElementsByClass(m21_expr.Ornament))
+    assert len(orns) == 0

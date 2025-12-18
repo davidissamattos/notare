@@ -150,6 +150,18 @@ notare metadata --source score.musicxml --title --composer --musical-key
 notare metadata --source score.musicxml --new-title "My new title" --output updated.musicxml
 ```
 
+#### Set Part Metadata
+
+Rename a part and/or change its order in the score.
+
+```bash
+# Rename a part by name
+notare set-part-metadata --source score.musicxml --part-name "Part 1" --name "New part name" --output out.musicxml
+
+# Move part number 2 to the first position
+notare set-part-metadata --source score.musicxml --part-number 2 --order 1 --output out.musicxml
+```
+
 ### Extract module
 
 ```bash
@@ -280,10 +292,18 @@ notare simplify --source score.musicxml --ornament-removal --ornament-removal-du
 
 # Works with pipes (omit --source to read stdin; omit --output to stream stdout)
 type tests\data\BrahWiMeSample.musicxml | notare simplify --ornament-removal > simplified.musicxml
+
+# Limit to specific measures and parts
+notare simplify --source score.musicxml --measures 1-4 --part-name Flute --ornament-removal --output flute_excerpt_simplified.musicxml
 ```
 
 Algorithms
 - `--ornament-removal`: Simplifies grace notes, turns, trills components, and very short-duration neighbors.
+
+Scopes
+- Limit by measures: `--measures 1-4,6` (same syntax as Extract/Delete)
+- Limit by parts: `--part-name Flute,Oboe` or `--part-number 1,3`
+- If no part or measure scope is provided, algorithms apply to the entire score.
 
 Heuristic (all conditions must hold):
 - Duration < X beats (default X = `1/8` of the local beat)
@@ -293,4 +313,22 @@ Heuristic (all conditions must hold):
 Duration parameter
 - `--ornament-removal-duration "A/B"` sets the threshold as a fraction of the local beat (e.g., `1/8`, `1/4`).
 - Beat duration is derived from the current time signature (e.g., quarter in 4/4, dotted quarter in 6/8).
+
+### Add (Insert) module
+
+Insert measures and parts from one score into another, matching by part names.
+
+```bash
+# Insert all measures from b into a before measure 1
+notare add --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml
+
+# Insert after a measure
+notare add --original a.musicxml --to-add b.musicxml --measure 4 --before false --output out.musicxml
+```
+
+Behavior
+- Matched parts: content from `--to-add` is inserted at the given position.
+- Unmatched original parts: insert rest measures to keep alignment.
+- Unmatched `--to-add` parts: new parts are created with the given content; before/after regions are filled with rests to match other parts.
+- Measure numbering is renumbered to start at 1 after insertion.
 

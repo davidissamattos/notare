@@ -215,7 +215,12 @@ def _write_to_buffer(
     *,
     write_kwargs: dict[str, Any] | None,
 ) -> None:
+    # Normalize notational representation for safe export
     suffix = f".{fmt.split('.')[0]}"
+    try:
+        score= score.makeNotation()
+    except Exception as e:
+        pass
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp_path = Path(tmp.name)
     try:

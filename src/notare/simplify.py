@@ -30,15 +30,16 @@ Notes
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import BinaryIO, Callable, Dict, Iterable, List, Tuple
 
 from music21 import interval as m21_interval
 from music21 import meter as m21_meter
 from music21 import note as m21_note
 from music21 import stream as m21_stream
+from music21 import expressions as m21_expr
+from music21 import spanner as m21_spanner
 
-from .utils import load_score, write_score
+from .utils import load_score, write_score, _parse_measure_spec, _select_parts
 
 
 # --- Public API ---
@@ -49,6 +50,9 @@ def simplify_score(
 	output: str | None = None,
 	output_format: str | None = None,
 	algorithms: List[Tuple[str, Dict[str, str]]] | None = None,
+	measures: str | None = None,
+	part_names: str | None = None,
+	part_numbers: str | None = None,
 	stdin_data: bytes | None = None,
 	stdout_buffer: BinaryIO | None = None,
 ) -> str:
@@ -60,6 +64,7 @@ def simplify_score(
 	- output_format: Explicit output format when writing (e.g., `musicxml`).
 	- algorithms: Ordered list of (algorithm_name, params) to apply.
 	  Example: `[('ornament_removal', {'duration': '1/8'})]`.
+	- measures / part_names / part_numbers: Scoping options; when omitted, algorithms apply to the entire score.
 	- stdin_data / stdout_buffer: Raw data buffers for piping.
 
 	Returns
@@ -67,13 +72,25 @@ def simplify_score(
 	"""
 	score = load_score(source, stdin_data=stdin_data)
 
+	# Determine selection scopes
+	ranges = _parse_measure_spec(measures)
+	try:
+		selected_parts = _select_parts(score, part_names=part_names, part_numbers=part_numbers)
+	except ValueError:
+		# If explicit selection did not match any part, apply to none
+		selected_parts = []
+
 	# Resolve algorithms (defaults to no-op if none provided)
 	for name, params in _normalize_algorithms(algorithms or []):
 		func = _ALGORITHM_REGISTRY.get(name)
 		if func is None:
 			# Unknown algorithm: skip safely
 			continue
-		func(score, **params)
+		# Inject selection context into params so algorithms can scope their work
+		full_params = dict(params or {})
+		full_params["_ranges"] = ranges
+		full_params["_parts"] = selected_parts
+		func(score, **full_params)
 
 	# Normalize notational representation for safe export
 	try:
@@ -177,19 +194,54 @@ def _is_weak_beat(n: m21_note.Note) -> bool:
 		return True
 
 
-def _ornament_removal(score: m21_stream.Score, *, duration: str | None = None) -> None:
+def _number_in_ranges(num: int, ranges: List[Tuple[int, int]]) -> bool:
+	if not ranges:
+		return True
+	for start, end in ranges:
+		if start <= num <= end:
+			return True
+	return False
+
+
+def _ornament_removal(
+	score: m21_stream.Score,
+	*,
+	duration: str | None = None,
+	_ranges: List[Tuple[int, int]] | None = None,
+	_parts: List[m21_stream.Stream] | None = None,
+) -> None:
 	"""Remove candidate ornament notes based on duration, context, and metric position.
 
 	Parameters
 	- duration: Ratio of the beat to use as the maximum ornament length (e.g., '1/8').
 	  Defaults to '1/8'. The actual threshold in quarterLength is: localBeatQL * ratio.
+	- _ranges: Optional measure ranges to limit application.
+	- _parts: Optional list of parts/streams to limit application.
 	"""
 	ratio = _parse_ratio(duration, default=1.0 / 8.0)
 
-	parts = list(score.parts) or [score]
+	parts = _parts if (_parts is not None and len(_parts) > 0) else (list(score.parts) or [score])
 	for part in parts:
+		# First remove ornament mark objects (trills, turns, mordents, etc.) and trill extensions
+		_remove_ornament_objects(part)
 		notes: List[m21_note.Note] = [n for n in part.recurse().notes if isinstance(n, m21_note.Note)]
 		to_remove: List[m21_note.Note] = []
+
+		# Pass 1: remove all grace notes unconditionally (including first/last notes)
+		for n in notes:
+			is_grace_any = bool(getattr(getattr(n, "duration", None), "isGrace", False)) or (
+				float(getattr(getattr(n, "duration", None), "quarterLength", 0.0) or 0.0) == 0.0
+			)
+			in_selected_measures_any = True
+			if _ranges:
+				meas_any = n.getContextByClass(m21_stream.Measure)
+				try:
+					num_any = int(getattr(meas_any, "number", 0) or 0) if meas_any is not None else 0
+				except Exception:
+					num_any = 0
+				in_selected_measures_any = _number_in_ranges(num_any, _ranges)
+			if is_grace_any and in_selected_measures_any:
+				to_remove.append(n)
 		for i in range(1, len(notes) - 1):
 			n_prev = notes[i - 1]
 			n = notes[i]
@@ -198,16 +250,29 @@ def _ornament_removal(score: m21_stream.Score, *, duration: str | None = None) -
 			beat_ql = _local_beat_quarter_length(n)
 			threshold = beat_ql * ratio
 			ql = float(getattr(n.duration, "quarterLength", 0.0) or 0.0)
-			is_grace = bool(getattr(n, "isGrace", False))
+			# Detect grace via duration attribute or zero-length duration
+			is_grace = bool(getattr(getattr(n, "duration", None), "isGrace", False)) or (
+				float(getattr(getattr(n, "duration", None), "quarterLength", 0.0) or 0.0) == 0.0
+			)
 
-			cond_duration = is_grace or (ql < threshold)
+			cond_duration = (ql < threshold)
 			prev_longer = float(getattr(n_prev.duration, "quarterLength", 0.0) or 0.0) >= threshold
 			next_longer = float(getattr(n_next.duration, "quarterLength", 0.0) or 0.0) >= threshold
 			cond_neighbors = prev_longer and next_longer
 			cond_stepwise = _is_stepwise(n_prev, n) and _is_stepwise(n, n_next)
 			cond_weak = _is_weak_beat(n)
 
-			if cond_duration and cond_neighbors and cond_stepwise and cond_weak:
+			# Scope to selected measure ranges when provided
+			in_selected_measures = True
+			if _ranges:
+				meas = n.getContextByClass(m21_stream.Measure)
+				try:
+					num = int(getattr(meas, "number", 0) or 0) if meas is not None else 0
+				except Exception:
+					num = 0
+				in_selected_measures = _number_in_ranges(num, _ranges)
+
+			if in_selected_measures and cond_duration and cond_neighbors and cond_stepwise and cond_weak:
 				to_remove.append(n)
 
 		# Remove in a separate pass to avoid messing with iteration
@@ -220,6 +285,36 @@ def _ornament_removal(score: m21_stream.Score, *, duration: str | None = None) -
 				pass
 
 
-# Register algorithms
-register_algorithm("ornament_removal", lambda s, **p: _ornament_removal(s, duration=p.get("duration")))
+def _remove_ornament_objects(target: m21_stream.Stream) -> None:
+	"""Remove ornament markings like trills, turns, mordents and trill spanners."""
+	# Remove expression ornaments attached to notes/streams
+	try:
+		for expr in list(target.recurse().getElementsByClass(m21_expr.Ornament)):
+			site = expr.activeSite
+			if site is not None:
+				site.remove(expr)
+	except Exception:
+		pass
+
+	# Remove trill extensions (spanners)
+	try:
+		for sp in list(target.recurse().getElementsByClass(m21_spanner.Spanner)):
+			if isinstance(sp, m21_spanner.TrillExtension):
+				for site in list(sp.getSites() or []):
+					try:
+						site.remove(sp)
+					except Exception:
+						pass
+	except Exception:
+		pass
+
+
+# Register algorithms with context-aware wrapper
+_ALGORITHM_REGISTRY["ornament_removal"] = lambda s, **p: _ornament_removal(
+	s,
+	duration=p.get("duration"),
+	_ranges=p.get("_ranges"),
+	_parts=p.get("_parts"),
+)
+
 

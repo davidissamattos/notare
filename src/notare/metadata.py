@@ -22,6 +22,7 @@ from music21 import tempo as m21_tempo
 from music21 import meter as m21_meter
 
 from .utils import infer_format_from_path, load_score, write_score
+from .utils import _select_parts
 
 
 def metadata_summary(
@@ -396,6 +397,92 @@ def _get_custom_value(meta: m21_metadata.Metadata, label: str) -> str | None:
 
 def _set_custom_value(meta: m21_metadata.Metadata, label: str, value: str) -> None:
     meta.add(label, value)
+
+
+def set_part_metadata(
+    *,
+    source: str | None = None,
+    output: str | None = None,
+    part_name: str | None = None,
+    part_number: int | None = None,
+    name: str | None = None,
+    order: int | None = None,
+    stdin_data: bytes | None = None,
+    stdout_buffer: BinaryIO | None = None,
+) -> str:
+    """Set part-specific metadata such as part name and order.
+
+    Args
+    - part_name / part_number: Select the target part (exactly one of these).
+    - name: New display name for the selected part.
+    - order: New 1-based position for the selected part among all parts.
+
+    Behavior
+    - When `name` is provided, updates the `partName` of the selected part.
+    - When `order` is provided, reorders the parts so the selected part moves
+      to the specified 1-based index.
+    - If both are provided, both actions are applied (rename then reorder).
+    """
+    if part_name and part_number is not None:
+        raise ValueError("Specify either --part-name or --part-number, not both.")
+    if name is None and order is None:
+        raise ValueError("Provide at least one of --name or --order to update.")
+
+    score = load_score(source, stdin_data=stdin_data)
+    parts = list(score.parts)
+    if not parts:
+        raise ValueError("Score has no explicit parts to update.")
+
+    # Select exactly one part
+    selected = _select_parts(score, part_names=part_name, part_numbers=str(part_number) if part_number is not None else None)
+    if not selected:
+        raise ValueError("No part matched the selection.")
+    if len(selected) > 1:
+        raise ValueError("Selection matches multiple parts; specify a single part.")
+    target = selected[0]
+
+    # Update name
+    if name is not None:
+        try:
+            target.partName = str(name)
+        except Exception:
+            pass
+
+    # Reorder parts
+    if order is not None:
+        new_index = int(order)
+        if new_index < 1 or new_index > len(parts):
+            raise ValueError(f"--order must be between 1 and {len(parts)}")
+        # Build a new parts order
+        ordered: list[m21_stream.Stream] = list(parts)
+        # Find current index of target in parts
+        cur_idx = None
+        for i, p in enumerate(parts):
+            if p is target:
+                cur_idx = i
+                break
+        if cur_idx is None:
+            raise RuntimeError("Selected part not found in parts list.")
+        item = ordered.pop(cur_idx)
+        ordered.insert(new_index - 1, item)
+
+        # Rebuild score with reordered parts, preserving metadata
+        new_score = m21_stream.Score()
+        if score.metadata:
+            try:
+                new_score.metadata = score.metadata.clone()
+            except Exception:
+                new_score.metadata = score.metadata
+        for p in ordered:
+            new_score.insert(len(new_score.parts), p)
+        score = new_score
+
+    return write_score(
+        score,
+        target_format=None,
+        output=output,
+        stdout_buffer=stdout_buffer,
+    )
 
 
 def _collect_clefs(part: m21_stream.Stream) -> list[str]:

@@ -11,6 +11,7 @@ from . import __version__
 from .converter import convert_score
 from .metadata import metadata_summary
 from .metadata import set_metadata as set_metadata_cmd
+from .metadata import set_part_metadata as set_part_metadata_cmd
 from .extract import extract_sections
 from .delete import delete_sections
 from .transpose import transpose_score
@@ -18,6 +19,7 @@ from .analyze import analyze_score
 from .show import show_score
 from .play import play_score
 from .simplify import simplify_score
+from .insert import add_sections
 from .utils import  list_output_formats, list_input_formats
 
 
@@ -376,6 +378,31 @@ class ScoreTool:
             arranger=arranger,
         )
 
+    def set_part_metadata(
+        self,
+        *,
+        source: str | None = None,
+        output: str | None = None,
+        part_name: str | None = None,
+        part_number: int | None = None,
+        name: str | None = None,
+        order: int | None = None,
+    ) -> str:
+        """Set part-specific metadata: rename a part and/or change its order.
+
+        Examples
+        - `notare set-part-metadata --source score.musicxml --part-name "Part 1" --name "New part name" --output out.musicxml`
+        - `notare set-part-metadata --source score.musicxml --part-number 2 --order 1 --output out.musicxml`
+        """
+        return set_part_metadata_cmd(
+            source=source,
+            output=output,
+            part_name=part_name,
+            part_number=part_number,
+            name=name,
+            order=order,
+        )
+
     def show(
         self,
         *,
@@ -433,10 +460,16 @@ class ScoreTool:
         source: str | None = None,
         output: str | None = None,
         output_format: str | None = None,
+        measures: str | None = None,
+        part_name: str | None = None,
+        part_number: str | None = None,
         ornament_removal: bool = False,
         ornament_removal_duration: str | None = None,
     ) -> str:
         """Simplify a score by applying selected algorithms in appearance order.
+
+        --part-name and --part-number can be used to scope the simplification to specific parts.
+        --measures can be used to scope the simplification to specific measures.
 
         Algorithms
         - `--ornament-removal`: Enable removal of grace notes, turns/trills components,
@@ -463,7 +496,39 @@ class ScoreTool:
             source=source,
             output=output,
             output_format=output_format,
+            measures=measures,
+            part_names=part_name,
+            part_numbers=part_number,
             algorithms=algorithms,
+        )
+
+    def add(
+        self,
+        *,
+        original: str,
+        to_add: str,
+        measure: int,
+        before: bool = True,
+        output: str | None = None,
+        output_format: str | None = None,
+    ) -> str:
+        """Insert measures and parts from one score into another.
+
+        Examples
+        - `notare add --original a.musicxml --to-add b.musicxml --measure 1 --before --output out.musicxml`
+
+        Behavior
+        - Parts matched by name receive the inserted measures from `to_add`.
+        - Other original parts receive rest measures for alignment.
+        - Unmatched `to_add` parts are created as new parts and aligned with rests as needed.
+        """
+        return add_sections(
+            original=original,
+            to_add=to_add,
+            measure=measure,
+            before=before,
+            output=output,
+            output_format=output_format,
         )
 
 
