@@ -35,6 +35,7 @@ PIPELINE_POSIX: list[str] = [
     'cat tests/data/MozartPianoSonata.musicxml | notare simplify --ornament-removal',
     'cat tests/data/sozinho.musicxml | notare delete-lyrics',
     'cat tests/data/sozinho.musicxml | notare delete-chords',
+    'cat tests/data/MozartPianoSonata.musicxml | notare simplify --chordify',
 ]
 
 def _resolve_notare_invocation(shell: str) -> str:

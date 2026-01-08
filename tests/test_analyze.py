@@ -10,13 +10,14 @@ from notare.extract import extract_sections
 DATA_DIR = Path(__file__).parent / "data"
 
 
-def test_analyze_key_and_npvi() -> None:
+def test_analyze_key_npvi_and_miv() -> None:
     result = analyze_score(
         source=str(DATA_DIR / "c_scale.musicxml"),
-        metrics=["key", "npvi"],
+        metrics=["key", "npvi", "miv"],
     )
     assert "Key:" in result
     assert "nPVI:" in result
+    assert "MIV:" in result
 
 
 def test_analyze_subset_via_extract(tmp_path) -> None:

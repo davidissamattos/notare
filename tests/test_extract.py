@@ -7,6 +7,7 @@ from pathlib import Path
 from music21 import converter as m21_converter
 from music21 import note
 from music21 import stream
+from music21 import chord as m21_chord
 
 from notare.extract import extract_sections
 
@@ -72,3 +73,59 @@ def test_extract_combined_measures_and_part_numbers(tmp_path):
     assert len(new_score.parts) == 1
     assert new_score.parts[0].partName == "Oboe"
     assert len(list(new_score.parts[0].getElementsByClass(stream.Measure))) == 2
+
+
+def test_extract_chords_only_preserves_only_chords(tmp_path: Path) -> None:
+    score = stream.Score()
+    part = stream.Part()
+    meas1 = stream.Measure(number=1)
+    meas1.append(m21_chord.Chord(["C4", "E4"]))
+    meas1.append(note.Note("G4"))
+    meas2 = stream.Measure(number=2)
+    meas2.append(note.Note("F4"))
+    part.append(meas1)
+    part.append(meas2)
+    score.insert(0, part)
+    source = tmp_path / "chord_source.musicxml"
+    score.write("musicxml", fp=str(source))
+
+    output = tmp_path / "chords.musicxml"
+    extract_sections(
+        source=str(source),
+        output=str(output),
+        chords_only=True,
+    )
+
+    new_score = m21_converter.parse(str(output))
+    out_part = new_score.parts[0]
+    measures = list(out_part.getElementsByClass(stream.Measure))
+    assert len(measures) == 2
+
+    chords_m1 = list(measures[0].recurse().getElementsByClass(m21_chord.Chord))
+    notes_m1 = [n for n in measures[0].recurse().notes if isinstance(n, note.Note)]
+    assert len(chords_m1) == 1
+    assert sorted(p.nameWithOctave for p in chords_m1[0].pitches) == ["C4", "E4"]
+    assert notes_m1 == []
+
+    # Measure 2 originally had only a single note; after chords-only it should be empty
+    assert len(list(measures[1].recurse().getElementsByClass(m21_chord.Chord))) == 0
+    assert len(list(measures[1].recurse().notes)) == 0
+
+
+def test_extract_chords_only_handles_scores_without_chords(tmp_path: Path) -> None:
+    source = _build_score(tmp_path)
+    output = tmp_path / "chordless.musicxml"
+
+    extract_sections(
+        source=str(source),
+        output=str(output),
+        chords_only=True,
+    )
+
+    new_score = m21_converter.parse(str(output))
+    part = new_score.parts[0]
+    measures = list(part.getElementsByClass(stream.Measure))
+    assert len(measures) == 4
+    for measure in measures:
+        assert len(list(measure.recurse().getElementsByClass(m21_chord.Chord))) == 0
+        assert len(list(measure.recurse().notes)) == 0

@@ -171,6 +171,9 @@ notare extract --source score.musicxml --measures 1-4 --part-name Flute,Oboe --o
 # Keep all parts but only select specific measures
 notare extract --source score.musicxml --measures 1,3,5-8 --output highlights.musicxml
 
+# Keep only chord events (removes standalone notes/rests)
+cat score.musicxml | notare extract --measures 1-4 --chords-only > chords_only.musicxml
+
 # Combine part number selection with output piping
 notare extract --source score.musicxml --part-number 1 --measures 2-4 --output-format musicxml > flute_excerpt.musicxml
 ```
@@ -180,6 +183,7 @@ notare extract --source score.musicxml --part-number 1 --measures 2-4 --output-f
 - During import we re-number all the measures to start from 1. So the first measure is 1
 - If your score has other measures number system it will be overwritten 
 - If 0 is passed in measures, it returns the whole score
+- `--chords-only` removes single-note/rest events after extraction so only original chord objects remain (measures stay even if empty).
 
 ### Delete module
 
@@ -209,7 +213,7 @@ type tests\data\BrahWiMeSample.musicxml | notare delete --measures 1,3 | notare 
 
 ```bash
 # Analyze entire piece or pipeline with extracts
-notare analyze --source score.musicxml --key --npvi
+notare analyze --source score.musicxml --key --npvi --miv
 notare extract --source score.musicxml --measures 1-4 --output - | notare analyze --key
 ```
 
@@ -220,6 +224,7 @@ Available analyze flags (combine as needed):
 - `--interval-entropy`
 - `--pitch-class-entropy`
 - `--npvi`
+- `--miv`
 - `--contour-complexity`
 - `--highest-note`
 - `--rhythmic-variety`
@@ -287,6 +292,9 @@ Apply one or more simplification algorithms to reduce ornamental complexity whil
 # Remove common ornaments and short neighbors using a heuristic
 notare simplify --source score.musicxml --ornament-removal --output simplified.musicxml
 
+# Collapse all parts into a single part with chords
+cat music.musicxml | notare simplify --chordify > chords.musicxml
+
 # Control the maximum ornament duration threshold relative to the local beat
 notare simplify --source score.musicxml --ornament-removal --ornament-removal-duration "1/8" --output simplified.musicxml
 
@@ -298,6 +306,9 @@ notare simplify --source score.musicxml --measures 1-4 --part-name Flute --ornam
 ```
 
 Algorithms
+- `--chordify`: Uses music21's chordify helper to create a single part of stacked
+  chords that represent the vertical sonorities of the score. Measure/part
+  scopes are ignored because the transformation needs the full score context.
 - `--ornament-removal`: Simplifies grace notes, turns, trills components, and very short-duration neighbors.
 
 Scopes
@@ -331,4 +342,3 @@ Behavior
 - Unmatched original parts: insert rest measures to keep alignment.
 - Unmatched `--to-add` parts: new parts are created with the given content; before/after regions are filled with rests to match other parts.
 - Measure numbering is renumbered to start at 1 after insertion.
-

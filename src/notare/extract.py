@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import copy
-from pathlib import Path
 from typing import BinaryIO, Iterable
 
 from music21 import stream as m21_stream
+from music21 import chord as m21_chord
+from music21 import note as m21_note
 
 from .utils import load_score, write_score
 from .utils import _renumber_measures_starting_at_one, _parse_measure_spec, _select_parts
@@ -20,10 +21,16 @@ def extract_sections(
     measures: str | None = None,
     part_names: str | None = None,
     part_numbers: str | None = None,
+    chords_only: bool = False,
     stdin_data: bytes | None = None,
     stdout_buffer: BinaryIO | None = None,
 ) -> str:
-    """Extract selected measures/parts from a score and persist the result."""
+    """Extract selected measures/parts from a score and persist the result.
+
+    Set `chords_only=True` to retain only chord objects from the selected
+    excerpt, removing individual notes/rests while preserving the original
+    measures (yielding empty measures when no chords are present).
+    """
     score = load_score(source, stdin_data=stdin_data)
     measures = str(measures).strip() if measures else None
     part_names = str(part_names).strip() if part_names else None
@@ -55,6 +62,9 @@ def extract_sections(
 
     for part in parts_to_add:
         new_score.insert(len(new_score.parts), part)
+
+    if chords_only:
+        _retain_only_chords(new_score)
 
     # Renumber measures to start from 1 in the extracted score
     _renumber_measures_starting_at_one(new_score)
@@ -95,3 +105,21 @@ def _slice_part(part: m21_stream.Stream, ranges: Iterable[tuple[int, int]]) -> m
             new_part.append(copy.deepcopy(element))
 
     return new_part if len(new_part) > 0 else None
+
+
+def _retain_only_chords(score: m21_stream.Score) -> None:
+    """Remove non-chord notes/rests so that only chords remain in measures."""
+    targets = list(score.parts) if score.parts else [score]
+    for target in targets:
+        # Remove standalone notes and rests, leaving chord objects or structural elements
+        elements = list(target.recurse().notesAndRests)
+        for element in elements:
+            if isinstance(element, m21_chord.Chord):
+                continue
+            if isinstance(element, (m21_note.Note, m21_note.Rest)):
+                try:
+                    site = element.activeSite
+                    if site is not None:
+                        site.remove(element)
+                except Exception:
+                    pass

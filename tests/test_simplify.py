@@ -9,6 +9,7 @@ from music21 import meter as m21_meter
 from music21 import note as m21_note
 from music21 import stream as m21_stream
 from music21 import expressions as m21_expr
+from music21 import chord as m21_chord
 
 from notare.simplify import simplify_score
 
@@ -238,3 +239,34 @@ def test_ornament_markings_are_removed(tmp_path: Path) -> None:
     # Ensure no Ornament expressions remain
     orns = list(out.recurse().getElementsByClass(m21_expr.Ornament))
     assert len(orns) == 0
+
+
+def test_chordify_collapses_all_parts_into_chords() -> None:
+    # Two parts sounding simultaneously -> expect a single chord containing both pitches.
+    part_a = m21_stream.Part()
+    part_b = m21_stream.Part()
+    meas_a = m21_stream.Measure(number=1)
+    meas_b = m21_stream.Measure(number=1)
+    meas_a.insert(0, m21_meter.TimeSignature("4/4"))
+    meas_b.insert(0, m21_meter.TimeSignature("4/4"))
+    n_a = m21_note.Note("C4"); n_a.duration = m21_duration.Duration(1.0)
+    n_b = m21_note.Note("E4"); n_b.duration = m21_duration.Duration(1.0)
+    meas_a.append(n_a); meas_b.append(n_b)
+    part_a.append(meas_a); part_b.append(meas_b)
+    score = m21_stream.Score()
+    score.insert(0, part_a)
+    score.insert(0, part_b)
+
+    buffer = io.BytesIO()
+    simplify_score(
+        algorithms=[("chordify", {})],
+        stdin_data=_musicxml_bytes(score),
+        stdout_buffer=buffer,
+    )
+
+    out = m21_converter.parseData(buffer.getvalue())
+    out_part = out.parts[0] if out.parts else out
+    chords = list(out_part.recurse().getElementsByClass(m21_chord.Chord))
+    assert len(chords) == 1
+    names = sorted(p.nameWithOctave for p in chords[0].pitches)
+    assert names == ["C4", "E4"]

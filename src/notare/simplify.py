@@ -8,6 +8,8 @@ parameters using a namespaced flag style (e.g., `--ornament-removal-duration`).
 Currently implemented algorithms
 - ornament-removal: removes grace notes, turns/trills components, and very
   short-duration neighbors using a heuristic.
+- chordify: collapses the entire score into a single part made of chords by
+  delegating to music21's `Stream.chordify()` implementation.
 
 Heuristic for `ornament-removal`
 - Remove a note if ALL conditions are met:
@@ -19,6 +21,7 @@ Usage examples
 - Programmatic: `simplify_score(algorithms=[["ornament_removal", {"duration": "1/8"}]])`
 - CLI: `notare simplify --source in.musicxml --ornament-removal --output out.musicxml`
 - CLI with parameter: `notare simplify --ornament-removal --ornament-removal-duration "1/8"`
+- CLI chordify: `cat music.musicxml | notare simplify --chordify`
 
 Notes
 - "Beat" refers to the metric beat as determined by the local time signature.
@@ -63,7 +66,8 @@ def simplify_score(
 	- output: Path to write the result. Omit to stream to stdout.
 	- output_format: Explicit output format when writing (e.g., `musicxml`).
 	- algorithms: Ordered list of (algorithm_name, params) to apply.
-	  Example: `[('ornament_removal', {'duration': '1/8'})]`.
+	  Example: `[('ornament_removal', {'duration': '1/8'})]`. Supported names:
+	  `ornament_removal` and `chordify`.
 	- measures / part_names / part_numbers: Scoping options; when omitted, algorithms apply to the entire score.
 	- stdin_data / stdout_buffer: Raw data buffers for piping.
 
@@ -309,6 +313,31 @@ def _remove_ornament_objects(target: m21_stream.Stream) -> None:
 		pass
 
 
+def _chordify(
+	score: m21_stream.Score,
+	*,
+	_ranges: List[Tuple[int, int]] | None = None,
+	_parts: List[m21_stream.Stream] | None = None,
+) -> None:
+	"""Replace the score content with its chordified representation.
+
+	Measure and part scoping is ignored because chordify requires the full stream
+	context to create musically meaningful chords.
+	"""
+	_ = (_ranges, _parts)  # Unused; kept for symmetry with other algorithms.
+	metadata = score.metadata
+	chordified = score.chordify()
+	score.clear()
+	if metadata is not None:
+		score.metadata = metadata
+	try:
+		if not getattr(chordified, "partName", None):
+			chordified.partName = "Chordified Score"
+	except Exception:
+		pass
+	score.insert(0, chordified)
+
+
 # Register algorithms with context-aware wrapper
 _ALGORITHM_REGISTRY["ornament_removal"] = lambda s, **p: _ornament_removal(
 	s,
@@ -317,4 +346,8 @@ _ALGORITHM_REGISTRY["ornament_removal"] = lambda s, **p: _ornament_removal(
 	_parts=p.get("_parts"),
 )
 
-
+_ALGORITHM_REGISTRY["chordify"] = lambda s, **p: _chordify(
+	s,
+	_ranges=p.get("_ranges"),
+	_parts=p.get("_parts"),
+)

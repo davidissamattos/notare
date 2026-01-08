@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List
 from music21 import key as m21_key
 from music21 import note as m21_note
 from music21 import pitch as m21_pitch
+from music21.analysis import patel as m21_patel
 
 from .utils import load_score
 
@@ -36,8 +37,14 @@ def analyze_score(
         try:
             value = func(score)
         except Exception:
-            value = "N/A"
-        lines.append(f"{label}: {value}")
+            value = None
+        if value is None:
+            display = "N/A"
+        elif isinstance(value, str) and value.strip() == "":
+            display = "N/A"
+        else:
+            display = value
+        lines.append(f"{label}: {display}")
     return "\n".join(lines)
 
 
@@ -236,13 +243,27 @@ def metric_pitch_class_entropy(score) -> float:
 
 
 def metric_npvi(score) -> float:
-    stats = _score_stats(score)
-    durations = stats["durations"]
-    pairs = list(zip(durations[:-1], durations[1:]))
-    if not pairs:
-        return 0.0
-    diffs = [abs(d1 - d2) / ((d1 + d2) / 2) for d1, d2 in pairs if (d1 + d2)]
-    return round(100 * (sum(diffs) / len(diffs)), 2) if diffs else 0.0
+    """Normalized Pairwise Variability Index (nPVI)."""
+    try:
+        value = m21_patel.nPVI(score)
+    except Exception:
+        return None
+    try:
+        return round(float(value), 4)
+    except Exception:
+        return None
+
+
+def metric_miv(score) -> float:
+    """Melodic Interval Variability (MIV)."""
+    try:
+        value = m21_patel.melodicIntervalVariability(score)
+    except Exception:
+        return None
+    try:
+        return round(float(value), 4)
+    except Exception:
+        return None
 
 
 def metric_contour_complexity(score) -> float:
@@ -341,6 +362,7 @@ _METRIC_FUNCTIONS: OrderedDict[str, Callable[[Any], Any]] = OrderedDict(
         ("interval_entropy", metric_interval_entropy),
         ("pitch_class_entropy", metric_pitch_class_entropy),
         ("npvi", metric_npvi),
+        ("miv", metric_miv),
         ("contour_complexity", metric_contour_complexity),
         ("highest_note", metric_highest_note),
         ("rhythmic_variety", metric_rhythmic_variety),
@@ -366,6 +388,7 @@ _METRIC_LABELS: OrderedDict[str, str] = OrderedDict(
         ("interval_entropy", "Interval Entropy"),
         ("pitch_class_entropy", "Pitch Class Entropy"),
         ("npvi", "nPVI"),
+        ("miv", "MIV"),
         ("contour_complexity", "Contour Complexity"),
         ("highest_note", "Highest Note"),
         ("rhythmic_variety", "Rhythmic Variety"),

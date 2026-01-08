@@ -224,6 +224,7 @@ class ScoreTool:
         measures: str | None = None,
         part_name: str | None = None,
         part_number: str | None = None,
+        chords_only: bool = False,
     ) -> str:
         """Extract specific measures and/or parts from a score.
 
@@ -232,10 +233,12 @@ class ScoreTool:
             to start at 1 on import; `0` is treated as 1.
         - part-name: Comma-separated part names/ids
         - part-number: Comma-separated part numbers (1-based)
+        - `--chords-only`: Remove standalone notes/rests after extraction so only chord objects remain.
 
         Examples
         - `notare extract --source score.musicxml --measures 1-4 --part-name Flute,Oboe --output excerpt.musicxml`
         - `type score.musicxml | notare extract --measures 1,3 | notare show`
+        - `cat score.musicxml | notare extract --measures 1-4 --chords-only > chord_excerpt.musicxml`
         """
         return extract_sections(
             source=source,
@@ -244,6 +247,7 @@ class ScoreTool:
             measures=measures,
             part_names=part_name,
             part_numbers=part_number,
+            chords_only=chords_only,
         )
 
     def delete(
@@ -371,6 +375,7 @@ class ScoreTool:
         interval_entropy: bool = False,
         pitch_class_entropy: bool = False,
         npvi: bool = False,
+        miv: bool = False,
         contour_complexity: bool = False,
         highest_note: bool = False,
         rhythmic_variety: bool = False,
@@ -389,7 +394,7 @@ class ScoreTool:
         """Analyze a score and report requested metrics.
 
         Metrics (combine flags):
-        - title, key, key_clarity, interval_entropy, pitch_class_entropy, npvi,
+        - title, key, key_clarity, interval_entropy, pitch_class_entropy, npvi, miv,
             contour_complexity, highest_note, rhythmic_variety, avg_duration,
             number_of_notes, key_signature, time_signature, pitch_range,
             articulation_density, note_density, avg_tempo, dynamic_range,
@@ -408,6 +413,7 @@ class ScoreTool:
                 ("interval_entropy", interval_entropy),
                 ("pitch_class_entropy", pitch_class_entropy),
                 ("npvi", npvi),
+                ("miv", miv),
                 ("contour_complexity", contour_complexity),
                 ("highest_note", highest_note),
                 ("rhythmic_variety", rhythmic_variety),
@@ -543,6 +549,7 @@ class ScoreTool:
         measures: str | None = None,
         part_name: str | None = None,
         part_number: str | None = None,
+        chordify: bool = False,
         ornament_removal: bool = False,
         ornament_removal_duration: str | None = None,
     ) -> str:
@@ -552,6 +559,9 @@ class ScoreTool:
         --measures can be used to scope the simplification to specific measures.
 
         Algorithms
+        - `--chordify`: Collapse all parts into a single part made of chords using
+          music21's chordify helper. Ignores part/measure scopes because the
+          algorithm relies on the full score context.
         - `--ornament-removal`: Enable removal of grace notes, turns/trills components,
           and very short-duration neighbors using a heuristic. Optional parameter:
           `--ornament-removal-duration` (e.g., "1/8") controls the maximum ornament
@@ -566,6 +576,8 @@ class ScoreTool:
         """
         # Build ordered algorithm list (future: derive exact order from argv tokens)
         algorithms: list[tuple[str, dict[str, str]]] = []
+        if chordify:
+            algorithms.append(("chordify", {}))
         if ornament_removal:
             params = {}
             if ornament_removal_duration:
